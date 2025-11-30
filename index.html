@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eternidad</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cormorant+Garamond:ital,wght@1,400;1,600&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050505; /* Inicio oscuro */
+            color: #ccc;
+            font-family: 'Cormorant Garamond', serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: background 5s ease, color 5s ease;
+        }
+
+        /* El fondo cambia a dorado oscuro al final */
+        body.fase-golden {
+            background: radial-gradient(circle at center, #1a1005 0%, #000 100%);
+            color: #ffeebb;
+        }
+
+        #lienzo {
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 0;
+            opacity: 0.3;
+            transition: opacity 3s;
+        }
+
+        /* --- EL NÚCLEO CENTRAL (Botón) --- */
+        .nucleo-container {
+            position: relative;
+            z-index: 20;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 40px 0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .nucleo {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+            transition: all 0.5s ease;
+            position: relative;
+            animation: latido-lento 3s infinite;
+        }
+
+        /* Efecto cuando se toca el núcleo */
+        .nucleo:active {
+            transform: scale(0.9);
+        }
+
+        /* Transformación del núcleo a Golden */
+        body.fase-golden .nucleo {
+            background: rgba(255, 215, 0, 0.2);
+            border: 1px solid rgba(255, 215, 0, 0.8);
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.2);
+            animation: latido-rapido 1.5s infinite;
+        }
+
+        .texto-click {
+            position: absolute;
+            font-family: 'Cinzel', serif;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* --- EL POEMA --- */
+        .verso-container {
+            position: relative;
+            z-index: 10;
+            height: 120px; /* Espacio fijo para texto */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 20px;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .verso {
+            font-size: 1.4rem;
+            line-height: 1.6;
+            font-style: italic;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .verso.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .verso.final {
+            font-size: 1.8rem;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Animaciones */
+        @keyframes latido-lento {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+        }
+
+        @keyframes latido-rapido {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 215, 0, 0.4); }
+            50% { transform: scale(1.15); box-shadow: 0 0 60px rgba(255, 215, 0, 0.8); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="lienzo"></canvas>
+    
+    <audio id="musica" src="audio\fre.mp3" loop></audio>
+
+    <div class="verso-container">
+        <p class="verso" id="texto-poema">Tócame para empezar...</p>
+    </div>
+
+    <div class="nucleo-container" id="boton-central">
+        <div class="nucleo"></div>
+        <span class="texto-click" id="label-click"></span>
+    </div>
+
+    <script>
+        /* --- CONFIGURACIÓN --- */
+        // Este array es largo para durar toda la canción.
+        // La primera mitad es melancólica, la segunda es "Golden/Free".
+        
+        const historia = [
+            // INTRODUCCIÓN (Gris/Triste)
+            "Al principio...",
+            "El tiempo no pasaba,<br>solo se acumulaba en las esquinas.",
+            "Yo habitaba un invierno eterno,",
+            "donde los colores eran solo un recuerdo borroso.",
+            "Caminaba entre la multitud sin tocar nada,",
+            "como un fantasma en mi propia vida.",
+            "El ruido del mundo me ensordecía,",
+            "pero por dentro...",
+            "Por dentro reinaba un silencio absoluto.",
+            "Creí que la gravedad me mantendría abajo para siempre.",
+            "Creí que mi destino era ser sombra.",
+            
+            // EL CAMBIO (La transición)
+            "Pero entonces...",
+            "Sin avisar, el universo cambió de ritmo.",
+            "No fue un estruendo.",
+            "Fue una melodía suave, casi imperceptible.",
+            "Fue tu voz.",
+            "Al principio tuve miedo de mirar,",
+            "porque la luz lastima a quien vive en la oscuridad.",
+            "Pero tú no quemabas...",
+            "Tú abrigabas.",
+            
+            // CLÍMAX (Golden/Free) - Aquí cambiará el estilo visual
+            "Me enseñaste a respirar de nuevo.",
+            "Rompiste las cadenas que yo mismo forjé.",
+            "No me diste un mapa...",
+            "Me diste el coraje para perderme contigo.",
+            "Y descubrí que caer...",
+            "A veces es el primer paso para volar.",
+            "Ahora veo el oro en tus ojos.",
+            "Ahora siento el fuego en mis manos.",
+            "Ya no soy prisionero del ayer.",
+            "Soy libre.",
+            "Soy tuyo.",
+            "Soy eterno gracias a ti.",
+            "Te amo, mi Princesa hermosa que tiene por nombre Sarai. ✨"
+        ];
+
+        let indice = -1;
+        const textoEl = document.getElementById('texto-poema');
+        const botonCentral = document.getElementById('boton-central');
+        const nucleo = document.querySelector('.nucleo');
+        const label = document.getElementById('label-click');
+        const musica = document.getElementById('musica');
+        const body = document.body;
+
+        // Evento principal
+        botonCentral.addEventListener('click', () => {
+            
+            // 1. Activar música en el primer click
+            if(indice === -1) {
+                musica.play();
+                musica.volume = 0.6; // Volumen agradable
+                label.innerText = ""; // Quitar texto del botón
+            }
+
+            // 2. Avanzar historia
+            avanzar();
+
+            // 3. Efecto visual de pulso al hacer click
+            nucleo.style.transform = "scale(0.8)";
+            setTimeout(() => nucleo.style.transform = "scale(1)", 150);
+        });
+
+        function avanzar() {
+            // Fade out
+            textoEl.classList.remove('visible');
+
+            setTimeout(() => {
+                indice++;
+
+                if (indice < historia.length) {
+                    textoEl.innerHTML = historia[indice];
+                    textoEl.classList.add('visible');
+
+                    // --- MOMENTO CLAVE: CAMBIO A "GOLDEN" ---
+                    // Cuando pasamos la mitad de la historia (aprox verso 20)
+                    if (indice === 20) {
+                        activarModoGolden();
+                    }
+                    
+                    // Si es el último verso
+                    if (indice === historia.length - 1) {
+                        textoEl.classList.add('final');
+                        nucleo.style.display = 'none'; // Desaparece el botón al final
+                    }
+
+                } else {
+                    // Fin de la historia
+                }
+            }, 800); // Tiempo de transición
+        }
+
+        function activarModoGolden() {
+            body.classList.add('fase-golden');
+            generarParticulasDoradas(); // Aumentar partículas
+        }
+
+
+        /* --- CANVAS: PARTÍCULAS (Empiezan gris, terminan oro) --- */
+        const canvas = document.getElementById('lienzo');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particulas = [];
+        let colorParticula = "rgba(150, 150, 150, "; // Gris inicial
+
+        class Particula {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2;
+                this.speedY = Math.random() * 0.5 + 0.1;
+                this.opacity = Math.random() * 0.5 + 0.1;
+            }
+            update() {
+                this.y -= this.speedY;
+                if (this.y < 0) this.y = canvas.height;
+            }
+            draw() {
+                // El color depende de la clase del body
+                if (body.classList.contains('fase-golden')) {
+                    ctx.fillStyle = `rgba(255, 215, 0, ${this.opacity})`;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = "#ffd700";
+                } else {
+                    ctx.fillStyle = `rgba(100, 110, 120, ${this.opacity})`;
+                    ctx.shadowBlur = 0;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for(let i=0; i<50; i++) particulas.push(new Particula());
+        }
+
+        function generarParticulasDoradas() {
+            // Añadir más partículas al momento del clímax
+            for(let i=0; i<30; i++) particulas.push(new Particula());
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particulas.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+    </script>
+</body>
+</html>
